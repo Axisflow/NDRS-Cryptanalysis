@@ -1,7 +1,13 @@
 from typing import *
+from warnings import warn
 from random import randint
 from sympy import symbols, Poly, div, GF, invert
 
+# Warning class
+class PolynomialWarning(Warning):
+    pass
+
+# Quotient Ring Polynomial
 class QRPoly(list[int]):
     def __init__(self, degree: int, modulus: int, coeffs: list[int] = [0]):
         self.n = degree
@@ -11,6 +17,17 @@ class QRPoly(list[int]):
         self.modulus = Poly(self.x ** self.n + 1, self.x, modulus=self.p)
         self.poly = Poly(coeffs, self.x, modulus=self.p)
         self.__set_in_ring()
+
+    def copy(self, degree: int = None, modulus: int = None) -> 'QRPoly':
+        n = degree or self.n
+        if n < self.n:
+            warn(f"New degree {n} is less than current degree {self.n}", PolynomialWarning)
+        
+        p = modulus or self.p
+        if p < self.p:
+            warn(f"New modulus {p} is less than current modulus {self.p}", PolynomialWarning)
+
+        return QRPoly(n, p, self.poly.all_coeffs())
 
     def __set_in_ring(self):
         _, self.poly = div(self.poly, self.modulus, domain=self.field)
@@ -29,17 +46,17 @@ class QRPoly(list[int]):
         self.__set_in_ring()
 
     def divmod(self, other: 'QRPoly') -> tuple['QRPoly', 'QRPoly']:
-        q, r = div(self.poly, other.poly, domain=self.field)
+        q, r = div(self.poly, other.copy(self.n, self.p).poly, domain=self.field)
         return QRPoly(self.n, self.p, q.all_coeffs()), QRPoly(self.n, self.p, r.all_coeffs())
 
     def __add__(self, other: 'QRPoly') -> 'QRPoly':
-        return QRPoly(self.n, self.p, (self.poly + other.poly).all_coeffs())
+        return QRPoly(self.n, self.p, (self.poly + other.copy(self.n, self.p).poly).all_coeffs())
     
     def __sub__(self, other: 'QRPoly') -> 'QRPoly':
-        return QRPoly(self.n, self.p, (self.poly - other.poly).all_coeffs())
+        return QRPoly(self.n, self.p, (self.poly - other.copy(self.n, self.p).poly).all_coeffs())
     
     def __mul__(self, other: 'QRPoly') -> 'QRPoly':
-        return QRPoly(self.n, self.p, (self.poly * other.poly).all_coeffs())
+        return QRPoly(self.n, self.p, (self.poly * other.copy(self.n, self.p).poly).all_coeffs())
     
     def __floordiv__(self, other: 'QRPoly') -> 'QRPoly':
         q, _ = self.divmod(other)
@@ -82,22 +99,22 @@ class QRPoly(list[int]):
         return self.poly != other.poly
     
     def __lt__(self, other: int) -> list[bool]:
-        return [all(self[i] < other) for i in range(len(self))]
+        return [self[i] < other for i in range(len(self))]
     
     def __le__(self, other: int) -> list[bool]:
-        return [all(self[i] <= other) for i in range(len(self))]
+        return [self[i] <= other for i in range(len(self))]
     
     def __gt__(self, other: int) -> list[bool]:
-        return [all(self[i] > other) for i in range(len(self))]
+        return [self[i] > other for i in range(len(self))]
     
     def __ge__(self, other: int) -> list[bool]:
-        return [all(self[i] >= other) for i in range(len(self))]
+        return [self[i] >= other for i in range(len(self))]
     
     def __repr__(self):
-        return f"QuotientRing(degree={self.n}, modulus={self.p}, poly={self.poly})"
+        return f"QRPoly(deg={self.n}, mod={self.p}, poly={self.poly})"
     
     def __str__(self):
-        return f"{self.poly}"
+        return f"{str(self.poly)}"
     
     @staticmethod
     def random(degree: int, modulus: int) -> 'QRPoly':
@@ -135,8 +152,8 @@ if __name__ == "__main__":
 
     while True:
         c = QRPoly.random(5, 11)
+        print(f'c = {c} is invertible? {c.invertible()}')
         if c.invertible():
-            print(f'c = {c}')
             print(f'c^-1 = {c.inverse()}')
             print(f'c * c^-1 = {c * c.inverse()}')
             print(f'c^-1 * c = {c.inverse() * c}')
