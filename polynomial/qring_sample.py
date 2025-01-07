@@ -31,6 +31,9 @@ class QRPolySamples(list[QRPoly]):
     def __rmul__(self, another: QRPoly) -> 'QRPolySamples':
         return self * another
     
+    def __floordiv__(self, another: QRPoly) -> 'QRPolySamples':
+        return QRPolySamples(self.n, self.p, [self[i] // another for i in range(len(self))])
+    
     def __add__(self, another: 'QRPolySamples') -> 'QRPolySamples':
         return QRPolySamples(self.n, self.p, [self[i] + another[i] for i in range(len(self))])
     

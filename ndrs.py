@@ -93,7 +93,7 @@ class NDRS:
         return self.hash1(hash(msg), lsum(pks) * (sum_alphas + lsum(betas) + A))
 
     def hash3(self, alphai: QRPoly, betai: QRPoly, A: QRPoly, pks: List[PublicKey], msg: str) -> QRPoly:
-        return self.hash1(hash(msg), (alphai + betai + A) * lsum(pks))
+        return self.hash1(hash(msg), lsum(pks) * (alphai + betai + A))
 
     def key_gen(self) -> KeyPair:
         st0_idx = -1
@@ -172,17 +172,17 @@ class NDRS:
 
         return Evidence(sigmai, alphai, betai, zi_hat, ei)
     
-    def evidence_check(self, singer: KeyPair, msg: str, sig: Signature, evi: Evidence) -> bool:
+    def evidence_check(self, signer: KeyPair, msg: str, sig: Signature, evi: Evidence) -> bool:
         if not self.verify(msg, sig):
             raise ValueError("Invalid signature or message.")
         
-        alphai_prime = singer.pk.hashing(evi.zi_hat) - self.S * evi.ei
+        alphai_prime = signer.pk.hashing(evi.zi_hat) - self.S * evi.ei
         betai_prime = sig.b_hat.hashing(evi.zi_hat) - evi.sigmai * evi.ei
         ei_prime = self.hash3(alphai_prime, betai_prime, sig.A, sig.pks, msg)
         if ei_prime != evi.ei:
             raise ValueError("Invalid evidence.")
         
-        return evi.sigmai == self.S * self.hash1(sig.pks.index(singer.pk), singer.pk) + sig.A
+        return evi.sigmai == self.S * self.hash1(sig.pks.index(signer.pk), signer.pk) + sig.A
 
 class Frameable_NDRS(NDRS):
     def __init__(self, k: int, c: int = 3):
@@ -213,7 +213,7 @@ class Frameable_NDRS(NDRS):
         pk[1] = (self.S - lsum([pk[i] * sk[i] for i in range(2, self.m)])) * sk[1].inverse()
         pk[0] = (self.S - lsum([pk[i] * sk[i] for i in range(1, self.m)])) * original_key.sk[0].inverse()
         
-        return KeyPair(pk, original_key.sk), sk
+        return KeyPair(PublicKey(pk), original_key.sk), SecretKey(sk)
     
     def frameably_sign(self, signer: KeyPair, other_signers: List[PublicKey], msg: str, framed_idx: int) -> Signature:
         signer_idx = rnd.randint(0, len(other_signers))
@@ -221,10 +221,10 @@ class Frameable_NDRS(NDRS):
         signers_idices = list(range(len(pks)))
         signers_idices.remove(signer_idx)
         
-        b_hat = other_signers[framed_idx] * (self.hash1(framed_idx, other_signers[framed_idx]) - self.hash1(signer_idx, signer.pk)) * self.S / (self.S - other_signers[framed_idx].hashing(signer.sk))
+        b_hat = other_signers[framed_idx] * (self.hash1(framed_idx, other_signers[framed_idx]) - self.hash1(signer_idx, signer.pk)) * self.S // (self.S - other_signers[framed_idx].hashing(signer.sk))
         sigmaj = b_hat.hashing(signer.sk)
 
-        A = sigmaj - self.hash1(signer_idx, signer.pk) * self.S
+        A = sigmaj - self.S * self.hash1(signer_idx, signer.pk)
 
         yj_hat = QRPolySamples.random(self.n, self.Dy_mod, self.m)
         alphaj = signer.pk.hashing(yj_hat)
