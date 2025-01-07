@@ -7,8 +7,8 @@ from polynomial.qring import QRPoly
 from polynomial.utilities import is_prime, lsum
 
 class Key(QRPolySamples):
-    def __init__(self, degree, modulus, samples):
-        super().__init__(degree, modulus, samples)
+    def __init__(self, qrpoly_samples: QRPolySamples):
+        super().__init__(qrpoly_samples.n, qrpoly_samples.p, qrpoly_samples)
     def __repr__(self):
         return f"Key({super().__repr__()})"
 
